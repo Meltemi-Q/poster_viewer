@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海报代码预览工具 - AI海报实时编辑器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #2a2a2a;
+            --bg-editor: #1e1e1e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
+            --accent: #6366f1;
+            --accent-hover: #5855eb;
+            --border: #3a3a3a;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --radius: 16px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.6);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas: 
+                "header header"
+                "editor preview"
+                "footer footer";
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "header"
+                    "editor"
+                    "preview"
+                    "footer";
+                grid-template-rows: auto auto 1fr auto;
+            }
+        }
+
+        /* Header */
+        .header {
+            grid-area: header;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-editor);
+            border-color: var(--accent);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Editor Panel */
+        .editor-panel {
+            grid-area: editor;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .icon-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .code-editor {
+            flex: 1;
+            background: var(--bg-editor);
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 24px;
+            resize: none;
+            tab-size: 2;
+        }
+
+        .code-editor::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Preview Panel */
+        .preview-panel {
+            grid-area: preview;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-content {
+            flex: 1;
+            background: #f8f9fa;
+            position: relative;
+            overflow: auto;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .preview-placeholder svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Footer */
+        .footer {
+            grid-area: footer;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        /* Download Options */
+        .download-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Templates Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 32px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+
+        .close-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .template-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .template-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .template-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .template-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 16px 20px;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: var(--success);
+        }
+
+        .notification.error {
+            background: var(--error);
+        }
+
+        .notification.warning {
+            background: var(--warning);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 12px;
+                gap: 12px;
+            }
+            
+            .header {
+                padding: 16px;
+            }
+            
+            .logo-text {
+                font-size: 18px;
+            }
+            
+            .btn {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+            
+            .code-editor {
+                padding: 16px;
+                font-size: 13px;
+            }
+            
+            .panel-header {
+                padding: 16px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Loading State */
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 32px;
+            height: 32px;
+            margin: -16px 0 0 -16px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                    <span class="logo-text">海报代码预览工具</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="openTemplates()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                        </svg>
+                        示例模板
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearCode()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                        清空代码
+                    </button>
+                    <button class="btn btn-primary" onclick="formatCode()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3c-1.27 0-2.4.8-2.82 2H3v2h6.18c.42 1.2 1.55 2 2.82 2s2.4-.8 2.82-2H21V5h-6.18C14.4 3.8 13.27 3 12 3zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM7.5 11c-1.27 0-2.4.8-2.82 2H3v2h1.68c.42 1.2 1.55 2 2.82 2s2.4-.8 2.82-2H21v-2H10.32c-.42-1.2-1.55-2-2.82-2zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm9 3c-1.27 0-2.4.8-2.82 2H3v2h10.68c.42 1.2 1.55 2 2.82 2s2.4-.8 2.82-2H21v-2h-1.68c-.42-1.2-1.55-2-2.82-2zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>
+                        </svg>
+                        格式化
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Editor Panel -->
+        <div class="editor-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8zM7 4h10v4H7V4zM3 10a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H3zm1 2h16v6H4v-6z"/>
+                    </svg>
+                    HTML代码编辑器
+                </div>
+                <div class="panel-actions">
+                    <button class="icon-btn" onclick="copyCode()" title="复制代码">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" onclick="toggleFullscreen('editor')" title="全屏编辑">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <textarea 
+                class="code-editor" 
+                id="codeEditor" 
+                placeholder="在这里粘贴你的HTML代码...
+
+示例：
+<!DOCTYPE html>
+<html>
+<head>
+    <title>我的海报</title>
+    <style>
+        body { margin: 0; padding: 40px; font-family: Arial; }
+        .poster { width: 400px; height: 600px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body>
+    <div class='poster'>
+        <h1 style='color: white; text-align: center; padding-top: 100px;'>我的海报标题</h1>
+    </div>
+</body>
+</html>"
+                oninput="updatePreview()"
+            ></textarea>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="preview-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                    实时预览
+                </div>
+                <div class="panel-actions">
+                    <button class="icon-btn" onclick="refreshPreview()" title="刷新预览">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" onclick="toggleFullscreen('preview')" title="全屏预览">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="preview-content" id="previewContent">
+                <div class="preview-placeholder">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    <h3>暂无预览内容</h3>
+                    <p>在左侧编辑器中输入HTML代码，这里将实时显示预览效果</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="status-info">
+                    <div class="status-item">
+                        <div class="status-dot"></div>
+                        <span>就绪</span>
+                    </div>
+                    <div class="status-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <span id="codeLength">0 字符</span>
+                    </div>
+                </div>
+                <div class="download-options">
+                    <button class="btn btn-success" onclick="downloadPNG()" id="downloadBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                        </svg>
+                        下载PNG
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadHTML()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        下载HTML
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Templates Modal -->
+    <div class="modal" id="templatesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">示例模板</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="templates-grid">
+                <div class="template-card" onclick="loadTemplate('basic')">
+                    <div class="template-title">基础海报</div>
+                    <div class="template-desc">简单的渐变背景海报，适合快速开始</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('event')">
+                    <div class="template-title">活动海报</div>
+                    <div class="template-desc">活动宣传海报模板，包含时间地点等信息</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('product')">
+                    <div class="template-title">产品海报</div>
+                    <div class="template-desc">产品展示海报，适合电商和产品推广</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('social')">
+                    <div class="template-title">社交媒体</div>
+                    <div class="template-desc">适合微信朋友圈、微博等社交平台的方形海报</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('mobile')">
+                    <div class="template-title">手机海报</div>
+                    <div class="template-desc">9:16比例的竖版海报，适合手机屏幕</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('retro')">
+                    <div class="template-title">复古风格</div>
+                    <div class="template-desc">复古色彩搭配的创意海报模板</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let isFullscreen = false;
+        let previewIframe = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedCode();
+            updatePreview();
+            setupKeyboardShortcuts();
+        });
+
+        // 更新预览
+        function updatePreview() {
+            const code = document.getElementById('codeEditor').value;
+            const previewContent = document.getElementById('previewContent');
+            
+            // 更新字符统计
+            document.getElementById('codeLength').textContent = `${code.length} 字符`;
+            
+            if (code.trim() === '') {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                        </svg>
+                        <h3>暂无预览内容</h3>
+                        <p>在左侧编辑器中输入HTML代码，这里将实时显示预览效果</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                // 创建iframe预览
+                const iframe = document.createElement('iframe');
+                iframe.className = 'preview-iframe';
+                iframe.srcdoc = code;
+                
+                previewContent.innerHTML = '';
+                previewContent.appendChild(iframe);
+                
+                previewIframe = iframe;
+                
+                // 保存代码到本地存储
+                localStorage.setItem('posterCode', code);
+                
+            } catch (error) {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style="color: var(--error);">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        </svg>
+                        <h3>预览出错</h3>
+                        <p>HTML代码有语法错误，请检查后重试</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 加载保存的代码
+        function loadSavedCode() {
+            const savedCode = localStorage.getItem('posterCode');
+            if (savedCode) {
+                document.getElementById('codeEditor').value = savedCode;
+            }
+        }
+
+        // 刷新预览
+        function refreshPreview() {
+            updatePreview();
+            showNotification('预览已刷新', 'success');
+        }
+
+        // 清空代码
+        function clearCode() {
+            if (confirm('确定要清空所有代码吗？')) {
+                document.getElementById('codeEditor').value = '';
+                updatePreview();
+                showNotification('代码已清空', 'success');
+            }
+        }
+
+        // 复制代码
+        function copyCode() {
+            const code = document.getElementById('codeEditor').value;
+            navigator.clipboard.writeText(code).then(() => {
+                showNotification('代码已复制到剪贴板', 'success');
+            }).catch(() => {
+                showNotification('复制失败，请手动复制', 'error');
+            });
+        }
+
+        // 格式化代码（简单版）
+        function formatCode() {
+            let code = document.getElementById('codeEditor').value;
+            
+            // 简单的HTML格式化
+            code = code.replace(/></g, '>\n<');
+            code = code.replace(/^\s+|\s+$/gm, '');
+            
+            // 添加缩进
+            const lines = code.split('\n');
+            let indent = 0;
+            const formatted = lines.map(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('</')) {
+                    indent = Math.max(0, indent - 1);
+                }
+                const result = '  '.repeat(indent) + trimmed;
+                if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>')) {
+                    indent++;
+                }
+                return result;
+            }).join('\n');
+            
+            document.getElementById('codeEditor').value = formatted;
+            updatePreview();
+            showNotification('代码已格式化', 'success');
+        }
+
+        // 下载PNG
+        async function downloadPNG() {
+            if (!previewIframe) {
+                showNotification('请先输入HTML代码', 'error');
+                return;
+            }
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.classList.add('loading');
+            downloadBtn.disabled = true;
+
+            try {
+                // 等待iframe加载完成
+                await new Promise(resolve => {
+                    if (previewIframe.contentDocument.readyState === 'complete') {
+                        resolve();
+                    } else {
+                        previewIframe.onload = resolve;
+                    }
+                });
+
+                // 获取iframe内容
+                const iframeDoc = previewIframe.contentDocument || previewIframe.contentWindow.document;
+                const body = iframeDoc.body;
+
+                if (!body || !body.innerHTML.trim()) {
+                    throw new Error('无效的HTML内容');
+                }
+
+                // 使用html2canvas截图
+                const canvas = await html2canvas(body, {
+                    allowTaint: true,
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    width: body.scrollWidth,
+                    height: body.scrollHeight
+                });
+
+                // 下载图片
+                const link = document.createElement('a');
+                link.download = `poster_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+
+                showNotification('海报已下载', 'success');
+
+            } catch (error) {
+                console.error('下载失败:', error);
+                showNotification('下载失败，请检查代码', 'error');
+            } finally {
+                downloadBtn.classList.remove('loading');
+                downloadBtn.disabled = false;
+            }
+        }
+
+        // 下载HTML
+        function downloadHTML() {
+            const code = document.getElementById('codeEditor').value;
+            if (!code.trim()) {
+                showNotification('请先输入HTML代码', 'error');
+                return;
+            }
+
+            const blob = new Blob([code], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `poster_${new Date().getTime()}.html`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            showNotification('HTML文件已下载', 'success');
+        }
+
+        // 打开模板
+        function openTemplates() {
+            document.getElementById('templatesModal').classList.add('show');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('templatesModal').classList.remove('show');
+        }
+
+        // 加载模板
+        function loadTemplate(templateName) {
+            const templates = {
+                basic: `<!DOCTYPE html>
+<html>
+<head>
+    <title>基础海报</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        .poster {
+            width: 400px;
+            height: 600px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+        .title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <h1 class="title">我的海报</h1>
+        <p class="subtitle">在这里添加你的内容描述</p>
+    </div>
+</body>
+</html>`,
+
+                event: `<!DOCTYPE html>
+<html>
+<head>
+    <title>活动海报</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        .poster {
+            width: 400px;
+            height: 600px;
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            position: relative;
+            color: white;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            background: rgba(0,0,0,0.2);
+        }
+        .event-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .event-date {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px;
+            text-align: center;
+        }
+        .location {
+            font-size: 16px;
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+        }
+        .cta {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            color: #333;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="header">
+            <h1 class="event-title">精彩活动</h1>
+            <p class="event-date">2024年1月1日</p>
+        </div>
+        <div class="content">
+            <div class="location">活动地点：会议中心</div>
+            <p>加入我们，体验前所未有的精彩活动！</p>
+        </div>
+        <div class="cta">立即报名</div>
+    </div>
+</body>
+</html>`,
+
+                product: `<!DOCTYPE html>
+<html>
+<head>
+    <title>产品海报</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        .poster {
+            width: 400px;
+            height: 600px;
+            background: #f8f9fa;
+            position: relative;
+            color: #333;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .product-name {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .tagline {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .features {
+            padding: 30px;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        .feature::before {
+            content: "✓";
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+        .price {
+            position: absolute;
+            bottom: 80px;
+            left: 30px;
+            right: 30px;
+            text-align: center;
+        }
+        .price-amount {
+            font-size: 36px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .cta {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            right: 30px;
+            background: #007bff;
+            color: white;
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="header">
+            <h1 class="product-name">超值产品</h1>
+            <p class="tagline">品质保证，值得信赖</p>
+        </div>
+        <div class="features">
+            <div class="feature">高质量材料制作</div>
+            <div class="feature">专业团队设计</div>
+            <div class="feature">7天无理由退货</div>
+            <div class="feature">全国包邮服务</div>
+        </div>
+        <div class="price">
+            <div class="price-amount">¥99</div>
+            <div>限时特价</div>
+        </div>
+        <div class="cta">立即购买</div>
+    </div>
+</body>
+</html>`,
+
+                social: `<!DOCTYPE html>
+<html>
+<head>
+    <title>社交媒体海报</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        .poster {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(45deg, #FF9A8B, #A8E6CF);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        .poster::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+            animation: float 20s linear infinite;
+        }
+        @keyframes float {
+            0% { transform: translateX(-50px) translateY(-50px); }
+            100% { transform: translateX(50px) translateY(50px); }
+        }
+        .content {
+            z-index: 1;
+            padding: 40px;
+        }
+        .main-text {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .sub-text {
+            font-size: 16px;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        .hashtag {
+            position: absolute;
+            bottom: 20px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="content">
+            <h1 class="main-text">分享美好生活</h1>
+            <p class="sub-text">记录每一个精彩瞬间</p>
+        </div>
+        <div class="hashtag">#美好生活 #值得分享</div>
+    </div>
+</body>
+</html>`,
+
+                mobile: `<!DOCTYPE html>
+<html>
+<head>
+    <title>手机海报</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        .poster {
+            width: 300px;
+            height: 533px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            display: flex;
+            flex-direction: column;
+            color: white;
+            position: relative;
+        }
+        .header {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px 30px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        .features {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            margin: 0 20px;
+            border-radius: 15px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .feature-item::before {
+            content: "●";
+            margin-right: 8px;
+            color: #FFD700;
+        }
+        .footer {
+            padding: 30px;
+            text-align: center;
+        }
+        .cta {
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="header">
+            <h1 class="title">手机专属</h1>
+            <p class="subtitle">为移动体验而设计</p>
+            <div class="features">
+                <div class="feature-item">完美适配手机屏幕</div>
+                <div class="feature-item">轻松分享到社交平台</div>
+                <div class="feature-item">高清画质显示</div>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="cta">立即体验</div>
+        </div>
+    </div>
+</body>
+</html>`,
+
+                retro: `<!DOCTYPE html>
+<html>
+<head>
+    <title>复古海报</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Courier New', monospace; }
+        .poster {
+            width: 400px;
+            height: 600px;
+            background: #2C1810;
+            color: #F4E4BC;
+            position: relative;
+            overflow: hidden;
+        }
+        .poster::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255,179,71,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255,99,71,0.1) 0%, transparent 50%),
+                linear-gradient(45deg, transparent 40%, rgba(244,228,188,0.05) 50%, transparent 60%);
+        }
+        .header {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 60px 30px 40px;
+            border-bottom: 2px solid #D2B48C;
+        }
+        .vintage-title {
+            font-size: 36px;
+            font-weight: bold;
+            color: #FFB347;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 0px #8B4513;
+            letter-spacing: 2px;
+        }
+        .year {
+            font-size: 18px;
+            color: #D2B48C;
+            font-style: italic;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .slogan {
+            font-size: 20px;
+            color: #F4E4BC;
+            margin-bottom: 30px;
+            font-style: italic;
+            line-height: 1.4;
+        }
+        .features {
+            text-align: left;
+            margin: 30px 0;
+        }
+        .feature {
+            color: #D2B48C;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .feature::before {
+            content: "★";
+            color: #FFB347;
+            margin-right: 8px;
+        }
+        .footer {
+            position: absolute;
+            bottom: 40px;
+            left: 30px;
+            right: 30px;
+            text-align: center;
+            border-top: 1px solid #D2B48C;
+            padding-top: 20px;
+        }
+        .vintage-stamp {
+            background: #8B4513;
+            color: #F4E4BC;
+            padding: 8px 16px;
+            border: 2px dashed #D2B48C;
+            display: inline-block;
+            transform: rotate(-5deg);
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="header">
+            <h1 class="vintage-title">VINTAGE</h1>
+            <p class="year">EST. 2024</p>
+        </div>
+        <div class="content">
+            <p class="slogan">"回忆过去，创造经典"</p>
+            <div class="features">
+                <div class="feature">传统工艺制作</div>
+                <div class="feature">经典设计风格</div>
+                <div class="feature">限量珍藏版本</div>
+                <div class="feature">怀旧情怀体验</div>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="vintage-stamp">AUTHENTIC</div>
+        </div>
+    </div>
+</body>
+</html>`
+            };
+
+            const code = templates[templateName];
+            if (code) {
+                document.getElementById('codeEditor').value = code;
+                updatePreview();
+                closeModal();
+                showNotification(`已加载${templateName}模板`, 'success');
+            }
+        }
+
+        // 全屏切换
+        function toggleFullscreen(panel) {
+            // 这里可以实现全屏功能
+            showNotification('全屏功能开发中', 'warning');
+        }
+
+        // 键盘快捷键
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key) {
+                        case 's':
+                            e.preventDefault();
+                            downloadHTML();
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            downloadPNG();
+                            break;
+                        case 'l':
+                            e.preventDefault();
+                            clearCode();
+                            break;
+                        case 'f':
+                            e.preventDefault();
+                            formatCode();
+                            break;
+                    }
+                }
+            });
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠';
+            notification.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    ${type === 'success' ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' :
+                      type === 'error' ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>' :
+                      '<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>'}
+                </svg>
+                ${message}
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('templatesModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
